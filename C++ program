@@ -1,1 +1,735 @@
 
+//
+//  main.cpp
+//  Assignment 2
+//
+//  Created by Dorsa Massihpour on 10/28/18.
+//  Copyright © 2018 Dorsa Massihpour. All rights reserved.
+//
+//  Program Purpose: Demonstrate how to perform text file reading and writing,
+//  use arrays of pointers, dynamically allocate memory with new and delete,
+//  create classes using inheritance, and use static casting. These skills were
+//  used in the context of creating an inventory management system for a store,
+//  which can store and display a list of inventory products.
+//
+//  Revision History: Declarations for the three classses were written on
+//  11/2/2018. From 11/5/-11/9/2018, definitions for class member functions were
+//  written. Text files for testing were created, and BuildInventory() function
+//  was modified to convert the strings in txt file into an enum product condition
+//  type on 11/11/2018. From 11/12-11/13/2018, precision and width was set for
+//  display functions, InventorySystem destructor was modified to avoid memory
+//  leaks, and final testing was done to ensure functions work correctly.
+//
+
+#include <iostream>
+#include <string>
+#include <sstream>
+#include <ctime>
+#include <cstdlib>
+#include <fstream>
+#include <iomanip>
+
+using namespace std;
+
+typedef enum {pcNew, pcUsed, pcRefurbished, pcDefective} T_ProductCondition;
+
+class InventoryItem
+{
+protected:
+   string name_;
+   int quantity_;
+
+public:
+   InventoryItem();
+   InventoryItem(string name, int quantity);
+   ~InventoryItem();
+
+   string get_name() const;
+   void set_name(string name);
+   int get_quantity() const;
+   void set_quantity(int quantity);
+   void Display() const;
+
+};
+
+InventoryItem::InventoryItem(): name_(" "), quantity_(0) {}
+InventoryItem::InventoryItem(string name, int quantity): name_(name),
+quantity_(quantity){}
+InventoryItem::~InventoryItem()
+{
+   cout << "InventoryItem " << name_ << " with " << quantity_ <<
+   " items destroyed ..." << endl;
+}
+string InventoryItem::get_name() const {return name_;}
+void InventoryItem::set_name(string name) { name_=name;}
+int InventoryItem::get_quantity() const { return quantity_;}
+void InventoryItem::set_quantity(int quantity) { quantity_=quantity;}
+void InventoryItem::Display() const
+{
+   cout << setw(20) << "InventoryItem name: " << name_ << endl;
+   cout << setw(20) << "Quantity: " << quantity_ << endl;
+}
+
+
+class Product: public InventoryItem
+{
+private:
+   int product_id_;
+   double price_;
+   T_ProductCondition condition_;
+
+public:
+   Product();
+   Product(string name, int quantity, double price);
+   ~Product();
+   int generateProductID();
+
+   int get_product_id() const;
+   void set_product_id(int product_id);
+   double get_product_price() const;
+   void set_product_price(double price);
+   T_ProductCondition get_product_condition() const;
+   void set_product_condition(T_ProductCondition condition);
+
+   void Display() const;
+};
+
+int Product::generateProductID( )  {
+   int id = 0;
+   id = rand() % 10000;      // generate a number between 0-9999
+   return id;
+}
+
+Product::Product(): InventoryItem(), product_id_(0), price_(0.0){}
+Product::Product(string name, int quantity, double price) :
+InventoryItem(name, quantity), product_id_(generateProductID()), price_(price){}
+Product::~Product()
+{
+   cout << "Product " << product_id_ << " priced at " << price_ <<
+   " destroyed ..." << endl;
+}
+
+void Product::Display() const
+{
+   string condition;
+   if (condition_ == pcNew)
+   {
+      condition = "N";
+   }
+   else if (condition_ == pcUsed)
+   {
+      condition = "U";
+   }
+   else if (condition_ == pcRefurbished)
+   {
+      condition = "R";
+   }
+   else if (condition_ == pcDefective)
+   {
+      condition = "D";
+   }
+
+   InventoryItem::Display();
+   cout << setw(20) << "Product ID: " << product_id_ << endl;
+   cout << setw(20) << "Price: " << fixed << setprecision(2) << price_ << endl;
+   cout << setw(20) << "Condition: " << condition << endl;
+}
+
+
+int Product::get_product_id() const { return product_id_;}
+void Product::set_product_id(int product_id){ product_id_=product_id;}
+double Product::get_product_price() const { return price_;}
+void Product::set_product_price(double price){ price_=price;}
+T_ProductCondition Product::get_product_condition() const { return condition_;}
+void Product::set_product_condition(T_ProductCondition condition)
+{ condition_=condition;}
+
+class InventorySystem
+{
+private:
+   string store_name_;
+   int store_id_;
+   InventoryItem * item_list_ [512];
+   int item_count_;
+
+public:
+   InventorySystem ();
+   InventorySystem(string store_name, int store_id, int item_count);
+   ~InventorySystem();
+   void BuildInventory();
+   void ShowInventory() const;
+   void ShowDefectInventory() const;
+   void Terminate() const;
+
+   string get_store_name() const;
+   void set_store_name(string store_name);
+   int get_store_id() const;
+   void set_store_id(int store_id);
+   int get_item_count() const;
+   void set_item_count(int item_count);
+
+};
+
+InventorySystem::InventorySystem(): store_name_(" "), store_id_(0), item_count_(0)
+{
+   srand((unsigned int) time(NULL));
+   for (int i=0; i<512; i++)
+   {
+      item_list_[i]=NULL;
+   }
+}
+
+InventorySystem::InventorySystem(string store_name, int store_id, int item_count):
+store_name_(store_name), store_id_(store_id), item_count_(item_count)
+{
+   srand((unsigned int)time(NULL));
+   for (int i=0; i<512; i++)
+   {
+      item_list_[i]=NULL;
+   }
+}
+
+InventorySystem::~InventorySystem()
+{
+   Product * product_p = NULL;
+   for (int i=0; i<item_count_; i++)
+   {
+      product_p= static_cast < Product * > (item_list_[i]);
+      delete product_p;
+      // cast in order to call Product's deconstructor instead of InventoryItem's
+      // ("delete item_list_[i]"), to avoid memory leak in main function in our
+      // particular implementation
+   }
+}
+
+void InventorySystem::BuildInventory()
+{
+   ifstream fin("in.txt");
+   Product * product_p = NULL;
+   string name;
+   int quantity;
+   double price;
+   string condition;
+   string buffer;
+
+   if(!fin)
+   {
+      cout << "Error: Failed to open input file." << endl;
+   }
+
+   while(getline(fin, buffer, ';'))
+   {
+      name = buffer;
+
+      getline(fin, buffer, ';');
+      quantity = atoi(buffer.c_str());
+
+      getline(fin, buffer, ';');
+      price = atof(buffer.c_str());
+
+      getline(fin, buffer, '\n');
+      condition = (buffer.c_str());
+
+      product_p = new Product(name, quantity, price);
+
+      if (condition == "N")
+      {
+         product_p->set_product_condition(pcNew);
+      }
+      else if (condition == "R")
+      {
+         product_p->set_product_condition(pcRefurbished);
+      }
+      else if (condition == "U")
+      {
+         product_p->set_product_condition(pcUsed);
+      }
+      else if (condition == "D")
+      {
+         product_p->set_product_condition(pcDefective);
+      }
+      item_list_[item_count_++] = product_p;
+   }
+   fin.close();
+}
+
+void InventorySystem::ShowInventory() const
+{
+   InventoryItem * inventory_item_p = NULL;
+   for (int i=0; i<item_count_; i++)
+   {
+      inventory_item_p=item_list_[i];
+      Product * product_p = static_cast < Product * > (inventory_item_p);
+      product_p->Display();
+   }
+}
+
+void InventorySystem::ShowDefectInventory() const
+{
+   InventoryItem * inventory_item_p = NULL;
+   for (int i=0; i<item_count_;i++)
+   {
+      inventory_item_p = item_list_[i];
+      Product * product_p = static_cast < Product * > (inventory_item_p);
+      if(product_p->get_product_condition() == pcDefective)
+      {
+         product_p->Display();
+      }
+   }
+}
+
+void InventorySystem::Terminate() const
+{
+   string condition_letter;
+   T_ProductCondition condition;
+   ofstream fout("out.txt");
+   InventoryItem * inventory_item_p = NULL;
+   for (int i=0; i<item_count_;i++)
+   {
+      inventory_item_p = item_list_[i];
+      Product * product_p = static_cast < Product * > (inventory_item_p);
+
+      condition = product_p->get_product_condition();
+      if(condition == pcNew)
+      {
+         condition_letter = "N";
+      }
+      else if (condition == pcRefurbished)
+      {
+         condition_letter = "R";
+      }
+      else if(condition == pcUsed)
+      {
+         condition_letter = "U";
+      }
+      else if (condition == pcDefective)
+      {
+         condition_letter = "D";
+      }
+
+      fout << inventory_item_p->get_name() << ";"
+      << inventory_item_p->get_quantity()
+      << ";" << product_p->get_product_price() << ";" << condition_letter
+      << endl;
+   }
+   fout.close();
+}
+
+string InventorySystem::get_store_name() const {return store_name_;}
+void InventorySystem::set_store_name(string store_name){store_name_=store_name;}
+int InventorySystem::get_store_id() const {return store_id_;}
+void InventorySystem::set_store_id(int store_id){store_id_=store_id;}
+int InventorySystem::get_item_count() const {return item_count_;}
+void InventorySystem::set_item_count(int item_count){item_count_=item_count;}
+
+int main()
+{
+   InventorySystem * inventory_system_p = NULL;
+   inventory_system_p = new InventorySystem("Target", 2345, 0);
+   inventory_system_p->BuildInventory();
+   inventory_system_p->ShowInventory();
+   cout << "\n" << setw(20) << "Defective Items:\n" << endl;
+   inventory_system_p->ShowDefectInventory();
+   inventory_system_p->Terminate();
+   delete inventory_system_p;
+
+   my_array = new string[10];
+   string * the_string = my_array;
+}
+
+
+
+
+
+
+_______________________________________________________________________________________________________________________________
+
+
+
+
+
+
+
+//
+//  main.cpp
+//  Assignment 3
+//
+//  Created by Dorsa Massihpour on 11/19/18.
+//  Copyright © 2018 Dorsa Massihpour. All rights reserved.
+//
+//  Program Purpose: Demonstrates the use of abstract classes with pure virtual
+//  functions, polymorphism and dynamic cast, and operator overloading within
+//  a linked list implementation.  The program is a simplified MLS Listing that
+//  allows users to view and search for Single family homes and Townhouses based
+//  on zip code and maximum price:
+//
+//  Revision History: Class Declarations were written on 11/19-11/20/18.
+//  Property, Townhouse and SingleFamilyHouse classes were also defined on 11/20.
+//  PropertyList and MLSListings classes, and main function were defined on
+//  11/21 and 11/23/18.  Testing was done on 11/25/18 and 11/27/18, which led to
+//  modifications being made to the PropertyList destructor and console output formatting.
+
+#include <iostream>
+#include <string>
+#include <sstream>
+#include <ctime>
+#include <fstream>
+#include <iomanip>
+using namespace std;
+
+
+class Property
+{
+private:
+   Property * next_;
+
+protected:
+   string address_;
+   int zip_code_;
+   int offered_price_;
+   int year_built_;
+
+public:
+   Property();
+   Property(string address, int zip_code, int offered_price, int year_built);
+   virtual ~Property();
+
+   Property * get_next() const;
+   void set_next(Property * next);
+   string get_address() const;
+   void set_address(string address);
+   int get_zip_code() const;
+   void set_zip_code(int zip_code);
+   int get_offered_price() const;
+   void set_offered_price(int offered_price);
+   int get_year_built() const;
+   void set_year_built(int year_built);
+
+   virtual void ShowPropertyInfo() const = 0;
+   bool operator<=(int price);
+};
+
+Property::Property(): next_(NULL), address_(" "), zip_code_(0), offered_price_(0),
+year_built_(2000){}
+
+Property::Property(string address, int zip_code, int offered_price, int year_built):
+next_(NULL), address_(address), zip_code_(zip_code), offered_price_(offered_price),
+year_built_(year_built){}
+
+Property::~Property(){}
+
+Property * Property::get_next () const {return next_;}
+void Property::set_next (Property * next) {next_=next;}
+string Property::get_address() const {return address_;}
+void Property::set_address(string address) {address_=address;}
+int Property::get_zip_code() const {return zip_code_;}
+void Property::set_zip_code(int zip_code) {zip_code_=zip_code;}
+int Property::get_offered_price() const {return offered_price_;}
+void Property::set_offered_price(int offered_price) {offered_price_=offered_price;}
+int Property::get_year_built() const {return year_built_;}
+void Property::set_year_built(int year_built) {year_built_=year_built;}
+
+
+bool Property::operator<=(int price)
+{
+   return (offered_price_ <= price);
+}
+
+class SingleFamilyHouse: public Property
+{
+private:
+   double backyard_area_;
+
+public:
+   SingleFamilyHouse();
+   SingleFamilyHouse(string address, int zip_code, int offered_price, int year_built,
+   double backyard_area);
+   virtual ~SingleFamilyHouse();
+
+   void set_backyard_area(double backyard_area);
+   double get_backyard_area() const;
+   virtual void ShowPropertyInfo() const;
+
+};
+
+SingleFamilyHouse::SingleFamilyHouse(): Property(), backyard_area_(0.0){}
+SingleFamilyHouse::SingleFamilyHouse(string address, int zip_code, int offered_price,
+int year_built, double backyard_area): Property(address, zip_code, offered_price,
+year_built), backyard_area_(backyard_area){}
+SingleFamilyHouse::~SingleFamilyHouse(){}
+
+void SingleFamilyHouse::set_backyard_area(double backyard_area){
+backyard_area_ = backyard_area;}
+double SingleFamilyHouse::get_backyard_area() const {return backyard_area_;}
+
+void SingleFamilyHouse::ShowPropertyInfo() const
+{
+   cout << setw(20) << "SingleFamilyHouse Information:" << endl;
+   cout << setw(20) << "Address: " << address_ << endl;
+   cout << setw(20) << "Zip Code: " << zip_code_ << endl;
+   cout << setw(20) << "Offered Price: " << offered_price_ << endl;
+   cout << setw(20) << "Year Built: " << year_built_ << endl;
+   cout << setw(20) << "Backyard Area: " << fixed << setprecision(2) << backyard_area_ << endl;
+}
+
+class Townhouse: public Property
+{
+private:
+   double HOA_monthly_fee_;
+public:
+   Townhouse();
+   Townhouse(string address, int zip_code, int offered_price,
+   int year_built, double HOA_mothly_fee);
+   virtual ~Townhouse();
+   void set_HOA_monthly_fee(double HOA_monthly_fee);
+   double get_HOA_monthly_fee() const;
+   void ShowPropertyInfo() const;
+
+};
+
+Townhouse::Townhouse():Property(), HOA_monthly_fee_(100){}
+Townhouse::Townhouse(string address, int zip_code, int offered_price,
+int year_built, double HOA_monthly_fee): Property(address, zip_code,
+offered_price, year_built), HOA_monthly_fee_(HOA_monthly_fee){}
+Townhouse::~Townhouse(){}
+
+void Townhouse::set_HOA_monthly_fee(double HOA_monthly_fee){
+HOA_monthly_fee_=HOA_monthly_fee;}
+double Townhouse::get_HOA_monthly_fee() const {return HOA_monthly_fee_;}
+
+void Townhouse::ShowPropertyInfo() const
+{
+   cout << setw(20) << "Townhouse Information:" << endl;
+   cout << setw(20) << "Address: " << address_ << endl;
+   cout << setw(20) << "Zip Code: " << zip_code_ << endl;
+   cout << setw(20) << "Offered Price: " << offered_price_ << endl;
+   cout << setw(20) << "Year Built: " << year_built_ << endl;
+   cout << setw(20) << "HOA monthly fee: " << fixed << setprecision(2) <<
+   HOA_monthly_fee_ << endl;
+}
+
+class PropertyList
+{
+private:
+   Property * p_head_;
+
+public:
+   PropertyList();
+   ~PropertyList();
+   void Init();
+   void Insert(Property * new_node);
+   void ViewAllProperties() const;
+   void SearchTownhouseByZipcode(int zip_code) const;
+   void SearchByMaxPrice(double price) const;
+
+};
+
+PropertyList::PropertyList(): p_head_ (NULL) {}
+PropertyList::~PropertyList()
+{
+   while (p_head_ != NULL)
+   {
+      Property * p_node = p_head_;
+      p_head_ = p_head_->get_next();
+      delete p_node;
+   }
+}
+
+void PropertyList::Insert(Property * new_node)
+{
+   new_node->set_next(p_head_);
+   p_head_ = new_node;
+}
+
+void PropertyList::Init()
+{
+   Insert (new SingleFamilyHouse ("123 First Street, San Jose, CA ", 95112,450000,1956,5000.0 ));
+   Insert (new Townhouse ("234 Hillview Ave. #245, Milpitas, CA ", 95023,670000,2010,250.0 ));
+   Insert (new SingleFamilyHouse ("787 Adam Street, San Jose, CA", 95123,750000,1980,7000.0 ));
+   Insert (new SingleFamilyHouse ("2580 Albert Ave., Sunnyvale, CA", 94086,1250000,2010,3000.0 ));
+   Insert (new SingleFamilyHouse ("3810 Mosher Dr., San Jose, CA", 95148,950000,2000,4000));
+   Insert (new Townhouse ("126 Edwards St. #1278, Sunnyvale, CA", 94087,560000,2008,170.00));
+   Insert (new Townhouse ("2654 Ferguson Circle #305, Milpitas, CA", 95035,732000,2010,250.00));
+   Insert (new SingleFamilyHouse ("1022 Banyan Ct, San Jose, CA", 95131, 1250000,2007,3569));
+   Insert (new Townhouse ("1776 Camino Leonor, San Jose, CA", 95131,799000,2008,170.00));
+   Insert (new SingleFamilyHouse ("147 Florence St, Sunnyvale, CA", 94086,1198000,1942,5989));
+   Insert (new SingleFamilyHouse("8477 Westwood Dr, Gilroy, CA", 95020,659000,1974,6600));
+   Insert (new SingleFamilyHouse ("8534 Otoole Ct, Gilroy, CA", 95020,829500,1985,6203));
+   Insert (new SingleFamilyHouse ("894 Shirley Ave, Sunnyvale, CA", 94086,1188000,1950,6200));
+   Insert (new Townhouse ("1011 Giacomo Ln #6, San Jose, CA", 95131,1004710,2018,250.00));
+   Insert (new SingleFamilyHouse ("200 Autumn St, La Honda, CA", 94020,692000,1930,7400));
+   Insert (new SingleFamilyHouse ("2150 Monterey Rd #68, San Jose, CA", 95112,169900,1963,1000));
+   Insert (new Townhouse ("410 Auburn Way #14, San Jose, CA", 95129,649000,1970,230.00));
+   Insert (new Townhouse ("1256 Copper Peak Ln, San Jose, CA", 95120,1150000,1986,270.00));
+   Insert (new SingleFamilyHouse ("6283 Mahan Dr, San Jose, CA", 95123,958800,1969,1143));
+   Insert (new SingleFamilyHouse ("412 Avenida Palmas, San Jose, CA", 95123,999900,1968,7286));
+   Insert (new SingleFamilyHouse ("869 Channing Ave, Palo Alto, CA", 94301,2598000,1910,5917));
+   Insert (new SingleFamilyHouse ("1018 Harlan Ct, San Jose, CA", 95129,2000000,1967,9100));
+   Insert (new Townhouse ("4685 Albany Cir #135, San Jose, CA", 95129,839000,1982,350.00));
+   Insert (new SingleFamilyHouse ("6711 Michele Way, San Jose, CA", 95129,3498000,2018,7864));
+   Insert(new Townhouse ("234 Hillview Ave. #376, Milpitas, CA", 95023,820000,2010,250.00));
+}
+
+void PropertyList::ViewAllProperties() const
+{
+   Property * p_temp = p_head_;
+   while (p_temp != NULL)
+   {
+      p_temp->ShowPropertyInfo();
+      p_temp = p_temp->get_next();
+   }
+}
+
+void PropertyList::SearchTownhouseByZipcode(int zip_code) const
+{
+   bool no_houses = true;
+   Property * p_temp = p_head_;
+   int curr_zip_code;
+   Townhouse * p_townhouse;
+   while(p_temp != NULL)
+   {
+      p_townhouse = dynamic_cast <Townhouse *> (p_temp);
+      if(p_townhouse != NULL)
+      {
+         curr_zip_code = p_townhouse->get_zip_code();
+         if(curr_zip_code == zip_code)
+         {
+            cout << setw(20) << "Address: " << p_townhouse->get_address() << endl;
+            cout << setw(20) << "Zip Code: " << curr_zip_code << endl;
+            cout << setw(20) << "Offered Price: " << p_townhouse->get_offered_price() << endl;
+            cout << setw(20) << "HOA Fee: " << fixed << setprecision(2) << p_townhouse->get_HOA_monthly_fee() << endl;
+            no_houses = false;
+         }
+      }
+      p_temp = p_temp->get_next();
+   }
+   if (no_houses == true)
+   {
+      cout << "Sorry, no Townhouse listing found for zip code " << zip_code
+      << "! Please check back again at a later time." << endl;
+   }
+}
+
+void PropertyList::SearchByMaxPrice(double price) const
+{
+   bool no_houses = true;
+   Property * p_temp = p_head_;
+   while (p_temp != NULL)
+   {
+      if (p_temp->get_offered_price() <= price)
+      {
+         p_temp->ShowPropertyInfo();
+         no_houses = false;
+      }
+      p_temp = p_temp->get_next();
+   }
+   if (no_houses == true)
+   {
+      cout << "Sorry, there are no houses available for $" << fixed
+      << setprecision(2) << price << " or below.  Please check back again at a"
+      << " later time." << endl;
+   }
+}
+
+class MLSListings
+{
+private:
+   PropertyList property_list_;
+   void Menu();
+   int GetUserOption();
+
+   void ViewAllProperties() const;
+   void SearchTownhouseByZipCode() const;
+   void SearchByMaxPrice() const;
+   void Quit();
+
+public:
+   MLSListings();
+   ~MLSListings();
+   void Init();
+   void Run();
+};
+
+MLSListings::MLSListings(){}
+MLSListings::~MLSListings(){}
+
+void MLSListings::Menu()
+{
+   cout << setw(20) << "MLSListings Menu" << endl;
+   cout << "1. View all properties" << endl;
+   cout << "2. Search Townhouse by zip code" << endl;
+   cout << "3. Search properties by max price" << endl;
+   cout << "4. Quit" << endl;
+}
+
+int MLSListings::GetUserOption()
+{
+   int user_choice;
+   cout << setw(20) << "Select an option (1-4)" << endl;
+   cin >> user_choice;
+   return user_choice;
+}
+
+void MLSListings::Init()
+{
+   property_list_.PropertyList::Init();
+}
+
+void MLSListings::ViewAllProperties() const
+{
+   property_list_.PropertyList::ViewAllProperties();
+}
+
+void MLSListings::SearchTownhouseByZipCode() const
+{
+   int user_zip_code;
+   cout << setw(20) << "Please enter your desired zip code:" << endl;
+   cin >> user_zip_code;
+   property_list_.PropertyList::SearchTownhouseByZipcode(user_zip_code);
+}
+
+void MLSListings::SearchByMaxPrice() const
+{
+   int user_price;
+   cout << setw(20) << "Please enter your maximum price:" << endl;
+   cin >> user_price;
+   property_list_.PropertyList::SearchByMaxPrice(user_price);
+}
+
+void MLSListings::Quit()
+{
+   cout << setw(20) << "Thanks for browsing our listings. See you again later!" << endl;
+}
+
+void MLSListings::Run()
+{
+   int user_choice;
+   do
+   {
+      Menu();
+      user_choice = GetUserOption();
+      switch (user_choice)
+      {
+         case 1:
+            ViewAllProperties();
+            break;
+         case 2:
+            SearchTownhouseByZipCode();
+            break;
+         case 3:
+            SearchByMaxPrice();
+            break;
+         case 4:
+            Quit();
+      }
+   }
+   while (user_choice != 4);
+}
+
+int main()
+{
+   MLSListings * p_MLSListings = new MLSListings();
+   p_MLSListings->Init();
+   p_MLSListings->Run();
+   delete p_MLSListings;
+}
